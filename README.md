@@ -37,20 +37,22 @@ docs/superpowers/specs/   设计 spec
 1. 基础设施（postgres + milvus）起来后，在 postgres 建库并应用
    `deploy/postgres/init/01-…sql`、`02-…sql`（docker 会自动初始化）。
 2. 复制 `agent-service/.env.example` 为 `.env`，改成你 VM 的 DB/MILVUS 与密钥。
-3. 后端：
+3. 后端（Windows 请务必用 `python -m app.main`，内部会切 Selector 事件循环；uv 会加载 `.env`）：
    ```bash
-   cd agent-service && uv sync && uv run uvicorn app.main:app --host 0.0.0.0 --port 8001
+   cd agent-service && uv sync && uv run python -m app.main
    ```
-   自检：`GET /health` 应返回 ok。
-4. 灌法规 RAG（需 milvus 可连、已建库）：
+   自检：`GET http://127.0.0.1:8001/health` 应返回 `{"status":"ok"}`。
+   > 若直接 `uvicorn app.main:app` 在 Windows 上启动会因 ProactorEventLoop 报
+   > “Psycopg cannot use ProactorEventLoop”，请改用上面的 `python -m app.main`。
+4. 灌法规 RAG（需 milvus 可连、已建库；首次已跑过可跳过）：
    ```bash
    cd agent-service && uv run python scripts/ingest_rag.py
    ```
-5. 前端（本机可先行静态自验）：
+5. 前端（开发模式，代理到后端 8001）：
    ```bash
-   cd insurance-web && npm install && npm run build
+   cd insurance-web && npm install && npm run dev
    ```
-   单网址访问由 nginx 网关兜住（前端静态页 + 代理后端 /api）。
+   打开 http://localhost:5173 。单网址访问由 nginx 网关兜住（前端静态页 + 代理后端 /api）。
 
 ## 说明
 - 本机无 Docker/远程库时，只能做 `python -m compileall`、`npm run build` 等编译级自验；
