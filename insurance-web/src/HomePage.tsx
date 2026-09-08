@@ -1,25 +1,26 @@
 import {
   CustomerServiceOutlined,
+  FileProtectOutlined,
   LoginOutlined,
-  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { Alert, Button, Empty, Modal, Segmented, Skeleton } from 'antd';
 import { useEffect, useState } from 'react';
 
-import { listProducts } from './api';
+import { listTemplates } from './api';
 import { AuthModal } from './AuthModal';
 import { CATEGORY_LABELS } from './categoryLabels';
 import { ProductCard } from './ProductCard';
-import type { AuthSession, InsuranceCategory, Product } from './types';
+import type { AuthSession, DocumentTemplate, LegalCategory } from './types';
 
-type CategoryFilter = InsuranceCategory | 'all';
+type CategoryFilter = LegalCategory | 'all';
 
 const CATEGORY_OPTIONS: Array<{ label: string; value: CategoryFilter }> = [
   { label: '全部', value: 'all' },
-  { label: '医疗险', value: 'medical' },
-  { label: '重疾险', value: 'critical_illness' },
-  { label: '寿险', value: 'life' },
-  { label: '意外险', value: 'accident' },
+  { label: '劳动仲裁', value: 'arbitration' },
+  { label: '解除与补偿', value: 'termination' },
+  { label: '工资与加班', value: 'wage' },
+  { label: '工伤', value: 'injury' },
+  { label: '劳动合同', value: 'contract' },
 ];
 
 interface HomePageProps {
@@ -38,23 +39,23 @@ export function HomePage({
   onConsult,
 }: HomePageProps) {
   const [category, setCategory] = useState<CategoryFilter>('all');
-  const [products, setProducts] = useState<Product[]>([]);
+  const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(initialAuthOpen);
   const [consultAfterLogin, setConsultAfterLogin] = useState(initialAuthOpen);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selected, setSelected] = useState<DocumentTemplate | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    listProducts(category, controller.signal)
-      .then(setProducts)
+    listTemplates(category, controller.signal)
+      .then(setTemplates)
       .catch((reason) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return;
-        setError(reason instanceof Error ? reason.message : '产品加载失败');
+        setError(reason instanceof Error ? reason.message : '文书加载失败');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -86,13 +87,13 @@ export function HomePage({
     <div className="page-shell">
       <header className="site-header">
         <div className="site-header__inner">
-          <a className="brand" href="/" aria-label="安心保首页">
-            <span className="brand__mark"><SafetyCertificateOutlined /></span>
-            <span><strong>安心保</strong><small>保险优选平台</small></span>
+          <a className="brand" href="/" aria-label="劳翼法务首页">
+            <span className="brand__mark"><FileProtectOutlined /></span>
+            <span><strong>劳翼法务</strong><small>劳动法律文书与咨询平台</small></span>
           </a>
           <nav className="site-nav" aria-label="主导航">
-            <a className="is-active" href="#products">保险产品</a>
-            <a href="#service">服务保障</a>
+            <a className="is-active" href="#documents">法律文书</a>
+            <a href="#service">服务说明</a>
           </nav>
           <div className="site-actions">
             {session ? (
@@ -114,23 +115,23 @@ export function HomePage({
       <main>
         <section className="intro-band">
           <div>
-            <h1>选对保障，更从容地面对生活</h1>
-            <p>汇集多家保险公司产品，按需求清晰比较，保费以实际试算结果为准。</p>
+            <h1>把劳动纠纷讲给 AI，按案情生成维权文书</h1>
+            <p>覆盖仲裁、解除补偿、工资加班、工伤等常见劳动争议，文书模板仅供参考，重大涉诉事项请咨询执业律师。</p>
           </div>
           <Button type="primary" ghost icon={<CustomerServiceOutlined />} onClick={consult}>
-            让顾问帮我选
+            让顾问帮我分析
           </Button>
         </section>
 
-        <section className="products-section" id="products">
+        <section className="products-section" id="documents">
           <div className="products-heading">
             <div>
-              <h2>保险产品</h2>
-              <p>根据保障需求选择合适的产品类型</p>
+              <h2>法律文书</h2>
+              <p>根据你的争议类型选择适用的文书</p>
             </div>
-            <span>{loading ? '正在加载' : `共 ${products.length} 款产品`}</span>
+            <span>{loading ? '正在加载' : `共 ${templates.length} 份文书`}</span>
           </div>
-          <div className="category-filter" aria-label="按保险类型筛选">
+          <div className="category-filter" aria-label="按纠纷类型筛选">
             <Segmented<CategoryFilter>
               value={category}
               options={CATEGORY_OPTIONS}
@@ -143,37 +144,37 @@ export function HomePage({
               className="products-alert"
               type="error"
               showIcon
-              message="产品加载失败"
+              message="文书加载失败"
               description={error}
               action={<Button onClick={() => setReloadKey((value) => value + 1)}>重新加载</Button>}
             />
           ) : null}
 
           {loading ? (
-            <div className="product-grid" aria-label="产品加载中">
+            <div className="product-grid" aria-label="文书加载中">
               {Array.from({ length: 6 }, (_, index) => (
                 <div className="product-skeleton" key={index}><Skeleton active /></div>
               ))}
             </div>
-          ) : products.length ? (
+          ) : templates.length ? (
             <div className="product-grid">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} onView={setSelectedProduct} />
+              {templates.map((template) => (
+                <ProductCard key={template.id} template={template} onView={setSelected} />
               ))}
             </div>
           ) : (
-            <Empty description="该类型暂时没有可展示的产品" />
+            <Empty description="该类型暂时没有可展示的文书" />
           )}
         </section>
 
         <section className="service-strip" id="service">
-          <div><strong>多家产品</strong><span>覆盖常见保障需求</span></div>
-          <div><strong>信息清晰</strong><span>条款重点集中展示</span></div>
-          <div><strong>顾问协助</strong><span>按预算和需求组合建议</span></div>
+          <div><strong>多类文书</strong><span>覆盖常见劳动争议场景</span></div>
+          <div><strong>法规支撑</strong><span>回答引用真实法条来源</span></div>
+          <div><strong>AI 顾问</strong><span>分析案情、收集要素、生成文书</span></div>
         </section>
       </main>
 
-      <footer className="site-footer">保险产品信息仅供参考，具体保障责任以保险合同和实际投保页面为准。</footer>
+      <footer className="site-footer">本平台生成与提供的内容仅供模板与参考，不构成正式法律意见，重大涉诉事项请咨询执业律师。</footer>
 
       <AuthModal
         open={authOpen}
@@ -185,26 +186,31 @@ export function HomePage({
       />
 
       <Modal
-        open={selectedProduct !== null}
-        title={selectedProduct?.name}
+        open={selected !== null}
+        title={selected?.name}
         footer={[
-          <Button key="close" onClick={() => setSelectedProduct(null)}>关闭</Button>,
-          <Button key="consult" type="primary" onClick={consult}>咨询顾问</Button>,
+          <Button key="close" onClick={() => setSelected(null)}>关闭</Button>,
+          <Button key="consult" type="primary" onClick={consult}>咨询顾问生成</Button>,
         ]}
-        onCancel={() => setSelectedProduct(null)}
+        onCancel={() => setSelected(null)}
         width={620}
       >
-        {selectedProduct ? (
+        {selected ? (
           <div className="product-detail">
-            <p>{selectedProduct.description}</p>
+            <p>{selected.description}</p>
             <dl>
-              <div><dt>承保公司</dt><dd>{selectedProduct.insurer}</dd></div>
-              <div><dt>保险类型</dt><dd>{CATEGORY_LABELS[selectedProduct.category]}</dd></div>
-              <div><dt>适合人群</dt><dd>{selectedProduct.target_group}</dd></div>
-              <div><dt>保费参考</dt><dd>¥{selectedProduct.min_premium.toLocaleString('zh-CN')} 起/年</dd></div>
+              <div><dt>文书类型</dt><dd>{selected.doc_type}</dd></div>
+              <div><dt>所属类别</dt><dd>{CATEGORY_LABELS[selected.category]}</dd></div>
+              <div><dt>适用场景</dt><dd>{selected.target_scenario}</dd></div>
+              <div><dt>依据来源</dt><dd>{selected.source_note}</dd></div>
             </dl>
-            <h4>产品亮点</h4>
-            <ul>{selectedProduct.highlights.map((item) => <li key={item}>{item}</li>)}</ul>
+            {selected.highlights?.length ? (
+              <>
+                <h4>文书要点</h4>
+                <ul>{selected.highlights.map((item) => <li key={item}>{item}</li>)}</ul>
+              </>
+            ) : null}
+            <p className="legal-note">提示：由 AI 顾问根据案情收集要素后结构化生成，仅作模板参考。</p>
           </div>
         ) : null}
       </Modal>

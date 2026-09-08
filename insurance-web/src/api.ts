@@ -1,9 +1,10 @@
 import type {
   ChatHistory,
   ChatThread,
-  InsuranceCategory,
+  DocumentTemplate,
+  GeneratedDoc,
+  LegalCategory,
   PlanInterrupt,
-  Product,
 } from './types';
 
 export const API_BASE = '/api/v1';
@@ -81,16 +82,22 @@ async function agentRequest<T>(
   return response.json() as Promise<T>;
 }
 
-export function listProducts(
-  category: InsuranceCategory | 'all',
+export function listTemplates(
+  category: LegalCategory | 'all',
   signal?: AbortSignal,
-): Promise<Product[]> {
+): Promise<DocumentTemplate[]> {
   const params = new URLSearchParams();
   if (category !== 'all') {
     params.set('category', category);
   }
   const query = params.toString();
-  return request<Product[]>(`/products${query ? `?${query}` : ''}`, { signal });
+  return request<DocumentTemplate[]>(`/templates${query ? `?${query}` : ''}`, { signal });
+}
+
+export function listMyDocuments(userId: number): Promise<GeneratedDoc[]> {
+  return request<GeneratedDoc[]>('/documents', {
+    headers: { 'x-user-id': String(userId) },
+  });
 }
 
 export function markPlanItemInsured(

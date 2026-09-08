@@ -1,18 +1,27 @@
-export type InsuranceCategory = 'medical' | 'critical_illness' | 'life' | 'accident';
+export type LegalCategory = 'arbitration' | 'termination' | 'wage' | 'injury' | 'contract';
 
-export interface Product {
+export interface DocumentTemplate {
   id: number;
   name: string;
-  clause_name: string;
-  category: InsuranceCategory;
-  insurer: string;
+  category: LegalCategory;
+  doc_type: string | null;
+  source_note: string | null;
   image_url: string | null;
-  description: string;
-  min_premium: number;
-  max_premium: number | null;
-  target_group: string;
+  description: string | null;
+  target_scenario: string | null;
+  template_key: string;
+  element_schema?: Record<string, unknown>;
   highlights: string[];
   status: string;
+}
+
+export interface GeneratedDoc {
+  id: string;
+  template_id: number;
+  title: string;
+  template_name?: string | null;
+  status: string;
+  created_at?: string | null;
 }
 
 export interface UserSummary {

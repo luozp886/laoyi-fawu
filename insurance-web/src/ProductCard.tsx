@@ -1,47 +1,34 @@
-import { CheckCircleOutlined, RightOutlined, TeamOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, RightOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
-import { useState } from 'react';
 
 import { CATEGORY_LABELS } from './categoryLabels';
-import type { Product } from './types';
+import type { DocumentTemplate } from './types';
 
-interface ProductCardProps {
-  product: Product;
-  onView: (product: Product) => void;
+interface DocumentCardProps {
+  template: DocumentTemplate;
+  onView: (template: DocumentTemplate) => void;
 }
 
-export function ProductCard({ product, onView }: ProductCardProps) {
-  const [imageFailed, setImageFailed] = useState(false);
-
+export function ProductCard({ template, onView }: DocumentCardProps) {
   return (
     <article className="product-card">
       <div className="product-card__main">
         <div className="product-card__media">
-          {!imageFailed && product.image_url ? (
-            <img
-              src={product.image_url}
-              alt=""
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <span>{CATEGORY_LABELS[product.category]}</span>
-          )}
-          <strong>{CATEGORY_LABELS[product.category]}</strong>
+          <span><FileTextOutlined /></span>
+          <strong>{CATEGORY_LABELS[template.category]}</strong>
         </div>
         <div className="product-card__summary">
-          <h3 title={product.name}>{product.name}</h3>
-          <p className="product-card__insurer">{product.insurer}</p>
-          <p className="product-card__description">{product.description}</p>
+          <h3 title={template.name}>{template.name}</h3>
+          <p className="product-card__insurer">{template.doc_type ?? '法律文书'}</p>
+          <p className="product-card__description">{template.description}</p>
         </div>
       </div>
       <div className="product-card__audience">
-        <TeamOutlined />
-        <span>适合人群：{product.target_group}</span>
+        <FileTextOutlined />
+        <span>适用：{template.target_scenario ?? '未说明'}</span>
       </div>
       <ul className="product-card__highlights">
-        {product.highlights.slice(0, 3).map((highlight) => (
+        {(template.highlights ?? []).slice(0, 3).map((highlight) => (
           <li key={highlight}>
             <CheckCircleOutlined />
             <span>{highlight}</span>
@@ -50,11 +37,10 @@ export function ProductCard({ product, onView }: ProductCardProps) {
       </ul>
       <div className="product-card__footer">
         <div>
-          <span>年缴保费参考</span>
-          <strong>¥{product.min_premium.toLocaleString('zh-CN')}</strong>
-          <small>起</small>
+          <span>依据</span>
+          <strong className="product-card__source">{template.source_note ?? '—'}</strong>
         </div>
-        <Button type="link" onClick={() => onView(product)}>
+        <Button type="link" onClick={() => onView(template)}>
           查看详情 <RightOutlined />
         </Button>
       </div>
