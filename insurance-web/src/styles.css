@@ -2231,3 +2231,66 @@ a {
   .dd, .lp-cat { transition: none; }
   .lp-paper { transform: none; }
 }
+
+/* ============ 劳翼法务 · 顾问对话页皮肤(藏蓝金) ============ */
+.advisor-page { background: #f3efe6; }
+.advisor-header {
+  background: linear-gradient(120deg, #0c1c31 0%, #14304f 60%, #1d3f63 100%);
+  border-bottom: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.advisor-header .brand__mark { background: #fff; color: #14304f; box-shadow: none; }
+.advisor-header .brand strong { color: #fff; }
+.advisor-header .brand small { color: #b9c6d4; }
+.advisor-header > div:last-child > span { color: #d9e0e8; }
+.advisor-header .ant-btn { color: #e6ecf3; border-color: rgba(255, 255, 255, 0.32); }
+.advisor-header .ant-btn:hover { color: #fff; border-color: #fff; background: rgba(255, 255, 255, 0.1); }
+
+.thread-panel,
+.chat-panel {
+  background: #fff;
+  border-color: var(--line);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(18, 38, 63, 0.05);
+}
+
+.thread-item { border-radius: 10px; }
+.thread-item:hover,
+.thread-item.is-active {
+  background: #eef1f8;
+  border-color: rgba(176, 138, 52, 0.45);
+  color: var(--ink);
+}
+.thread-item.is-active { box-shadow: inset 3px 0 0 var(--gold); }
+
+.chat-empty > .anticon { color: var(--gold); }
+.chat-empty h1 { color: var(--ink); }
+.chat-empty p { color: var(--muted); }
+
+.chat-message > div { border-radius: 14px; }
+.chat-message--user > div {
+  background: #14304f;
+  color: #fff;
+  border-radius: 14px 14px 4px 14px;
+}
+.chat-message--assistant > div {
+  background: #f7f2e8;
+  color: var(--ink);
+  border: 1px solid #ede3cf;
+  border-radius: 14px 14px 14px 4px;
+}
+.chat-message--assistant .markdown-message blockquote {
+  border-color: var(--gold);
+  background: rgba(176, 138, 52, 0.08);
+}
+
+/* 引用来源 / 方案 / 附加信息 卡片金调 */
+.source-list button { color: #6a4f14; }
+.source-list button:hover { border-color: var(--gold); color: #4a3609; }
+.clause-source-header > .anticon { color: var(--gold); }
+.clause-source-header h3 { color: var(--ink); }
+.doc-preview__note { color: var(--gold); }
+
+@media (max-width: 620px) {
+  .advisor-header { height: auto; min-height: 66px; flex-wrap: wrap; gap: 8px; padding-top: 8px; padding-bottom: 8px; }
+}

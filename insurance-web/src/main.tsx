@@ -10,9 +10,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#087f73',
-          colorInfo: '#087f73',
-          borderRadius: 6,
+          colorPrimary: '#14304f',
+          colorInfo: '#14304f',
+          colorLink: '#b08a34',
+          colorLinkHover: '#cba44a',
+          colorSuccess: '#25614a',
+          colorError: '#a23a3a',
+          colorWarning: '#c77700',
+          borderRadius: 10,
           fontFamily: 'Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
         },
       }}
