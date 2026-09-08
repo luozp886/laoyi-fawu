@@ -6,22 +6,22 @@ from pydantic import BaseModel, Field
 
 
 @dataclass(frozen=True)
-class InsuranceAgentContext:
-    """保险顾问Agent运行时上下文"""
+class LegalAgentContext:
+    """法律顾问 Agent 运行时上下文"""
 
     user_id: int
 
 
-# 类型别名。路由意图常量，使用这个类型的只能有下面的5个值。咱们目前只有这5个分支
+# 意图常量：主图分支
 Intent = Literal[
-    "chitchat",
-    "recommendation_plan",
-    "claim",
-    "human_handoff",
-    "fallback",
+    "chitchat",      # 与法律业务无关的闲聊
+    "law_advisor",   # 劳动维权顾问：案情→维权方案→生成文书
+    "legal_qa",      # 劳动法规咨询（RAG）
+    "human_handoff", # 转人工
+    "fallback",      # 无法判断
 ]
 
-# 结构化模型输出，限制模型回答的内容按这个结构输出
+
 class RouteResult(BaseModel):
     """意图识别结果"""
 
@@ -29,7 +29,6 @@ class RouteResult(BaseModel):
     reason: str = Field(description="判断该意图的理由")
 
 
-# 记录AI回答引用来源的信息，key是AI消息id，value是引用来源
 AdditionalInfo = dict[str, Any]
 
 
@@ -37,18 +36,17 @@ def merge_additional_info(
     left: dict[str, AdditionalInfo],
     right: dict[str, AdditionalInfo],
 ) -> dict[str, AdditionalInfo]:
-    """按照AI消息id合并引用信息"""
     if not left:
         return right
     return left.update(right)
 
 
-class InsuranceAgentState(MessagesState):
-    """保险顾问主Graph状态"""
+class LegalAgentState(MessagesState):
+    """法律顾问主 Graph 状态"""
 
-    active_workflow: Intent      # 本轮对话激活的工作流
-    previous_workflow: Intent    # 上一轮对话激活的工作流
-    additional_info: Annotated[  # 记录AI回答中的引用来源信息
+    active_workflow: Intent
+    previous_workflow: Intent
+    additional_info: Annotated[
         dict[str, AdditionalInfo],
         merge_additional_info,
     ]

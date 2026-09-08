@@ -6,14 +6,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.agents.orchestrator import init_insurance_orchestrator
+from app.agents.orchestrator import init_legal_orchestrator
 from app.core.config import settings
 from app.core.exceptions import ApplicationError
 from app.core.logging import configure_logging, get_logger
 from app.infra.checkpointer import close_checkpointer, init_checkpointer
 from app.modules.chat.router import router as chat_router
 from app.modules.chat_thread.router import router as chat_thread_router
-from app.modules.product.router import router as product_router
+from app.modules.document.router import router as document_router
 
 
 # 生命周期管理（预留）
@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
         await check_database()
         # 2.初始化Checkpointer连接池
         checkpointer = await init_checkpointer()
-        # 3.初始化保险顾问主Graph
-        app.state.agent = init_insurance_orchestrator(checkpointer)
+        # 3.初始化法律顾问主Graph
+        app.state.agent = init_legal_orchestrator(checkpointer)
         yield
     finally:
         logger.info("应用关闭中... ")
@@ -51,7 +51,7 @@ app = FastAPI(
 
 app.include_router(chat_router)
 app.include_router(chat_thread_router)
-app.include_router(product_router)
+app.include_router(document_router)
 
 
 # 统一处理业务异常：只要继承自 ApplicationError，都会转换成统一格式的 HTTP 响应

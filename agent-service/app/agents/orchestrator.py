@@ -5,34 +5,22 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from app.agents.claim import init_claim_agent
 from app.agents.chitchat import init_chitchat_agent
-from app.agents.insurance_advisor import init_insurance_advisor
-from app.agents.schemas import (
-    InsuranceAgentContext,
-    InsuranceAgentState,
-    Intent,
-)
-from .intent_router import intent_router
+from app.agents.intent_router import intent_router
+from app.agents.law_advisor import init_law_advisor
+from app.agents.legal_qa import init_legal_qa
+from app.agents.schemas import Intent, LegalAgentContext, LegalAgentState
+
+# 意图常量：chitchat / law_advisor / legal_qa / human_handoff / fallback
 
 
-# 一、定义节点
-
-# 1.路由节点
-async def route_node(
-    state: InsuranceAgentState,
-) -> Command[Intent]:
+async def route_node(state: LegalAgentState) -> Command[Intent]:
     """意图识别节点"""
-    # 1.获取active_workflow，也就是上一轮会话的工作流
     previous_workflow = state.get("active_workflow", "")
-    # 2.获取上轮AI消息
     previous_ai_message = find_previous_ai_message(state["messages"])
-    # 3.拼接上下文
     context = f"上轮对话工作流:{previous_workflow}\n上轮对话AI回复:{previous_ai_message}"
-    # 4.意图识别
     result = await intent_router.route(state["messages"][-1].content, context)
 
-    # 4.1.返回str，说明是寒暄，直接返回固定回复，跳至END
     if isinstance(result, str):
         return Command(
             update={
@@ -43,7 +31,6 @@ async def route_node(
             goto=END,
         )
 
-    # 4.2.返回RouteResult，记录上轮工作流、本轮工作流
     return Command(
         update={
             "previous_workflow": previous_workflow,
@@ -54,53 +41,46 @@ async def route_node(
 
 
 def find_previous_ai_message(messages: list[BaseMessage]) -> str:
-    """查找本轮用户消息之前最近一条可展示的AI回复"""
-
+    """查找本轮用户消息之前最近一条可展示的 AI 回复"""
     for message in reversed(messages[:-1]):
-        # 跳过非AIMessage
         if not isinstance(message, AIMessage):
             continue
-        # 跳过工具消息
         if message.tool_calls:
             continue
-        # 如果是正常AIMessage，直接返回
         if message.text:
             return message.text
-    # 如果是空消息
     return ""
 
 
-# 5.人工节点
-def human_handoff_node(state: InsuranceAgentState) -> dict:
+def human_handoff_node(state: LegalAgentState) -> dict:
     return {"messages": [AIMessage("已记录转人工请求，后续可接入人工客服系统。")]}
 
 
-# 6.fallback节点
-def fallback_node(state: InsuranceAgentState) -> dict:
-    return {"messages": [AIMessage("我还不能确定你的需求，请说明是想咨询保险、推荐方案还是办理理赔。")]}
+def fallback_node(state: LegalAgentState) -> dict:
+    return {
+        "messages": [
+            AIMessage("我还不能确定您的需求。请说明是想咨询劳动法律问题，还是想根据案情生成维权文书。")
+        ]
+    }
 
 
-# 二、定义主Graph
-def init_insurance_orchestrator(
-    checkpointer: AsyncPostgresSaver,
-):
-    """初始化保险顾问主Graph"""
-
+def init_legal_orchestrator(checkpointer: AsyncPostgresSaver):
+    """初始化法律顾问主 Graph"""
     builder = StateGraph(
-        InsuranceAgentState,
-        context_schema=InsuranceAgentContext,
+        LegalAgentState,
+        context_schema=LegalAgentContext,
     )
     builder.add_node("route", route_node)
     builder.add_node("chitchat", init_chitchat_agent())
-    builder.add_node("recommendation_plan", init_insurance_advisor())
-    builder.add_node("claim", init_claim_agent())
+    builder.add_node("law_advisor", init_law_advisor())
+    builder.add_node("legal_qa", init_legal_qa())
     builder.add_node("human_handoff", human_handoff_node)
     builder.add_node("fallback", fallback_node)
 
     builder.add_edge(START, "route")
     builder.add_edge("chitchat", END)
-    builder.add_edge("recommendation_plan", END)
-    builder.add_edge("claim", END)
+    builder.add_edge("law_advisor", END)
+    builder.add_edge("legal_qa", END)
     builder.add_edge("human_handoff", END)
     builder.add_edge("fallback", END)
 

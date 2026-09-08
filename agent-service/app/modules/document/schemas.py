@@ -53,3 +53,20 @@ class GeneratedDocumentListResponse(BaseModel):
     template_name: str | None = None
     status: str
     created_at: Any = None
+
+
+class CasePlanItemCreate(BaseModel):
+    """维权方案项：推荐某份文书模板"""
+
+    template_id: int
+    recommendation_reason: str | None = None
+    law_basis: str | None = None
+
+
+class CasePlanCreate(BaseModel):
+    """维权方案（Agent 保存用）"""
+
+    plan_name: str = Field(min_length=1, max_length=120)
+    summary: str | None = None
+    case_profile: dict[str, Any] = Field(default_factory=dict)
+    items: list[CasePlanItemCreate] = Field(min_length=1)
