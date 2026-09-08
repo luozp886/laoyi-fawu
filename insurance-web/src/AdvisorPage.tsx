@@ -248,7 +248,7 @@ export function AdvisorPage({ session, onBack, onSessionExpired, onApplyProduct 
       setThreads((current) =>
         current.map((thread) =>
           thread.id === threadId
-            ? { ...thread, title: thread.title === '保险咨询' ? content.slice(0, 20) : thread.title }
+            ? { ...thread, title: thread.title === '法律咨询' ? content.slice(0, 20) : thread.title }
             : thread,
         ),
       );
@@ -277,7 +277,7 @@ export function AdvisorPage({ session, onBack, onSessionExpired, onApplyProduct 
       ...current,
       {
         role: 'user',
-        content: action === 'approve' ? '确认保存保险方案' : '取消保存保险方案',
+        content: action === 'approve' ? '确认' : '取消',
       },
       { role: 'assistant', content: '' },
     ]);
@@ -333,11 +333,11 @@ export function AdvisorPage({ session, onBack, onSessionExpired, onApplyProduct 
       <header className="advisor-header">
         <div className="brand">
           <span className="brand__mark"><SafetyCertificateOutlined /></span>
-          <span><strong>安心保</strong><small>智能顾问</small></span>
+          <span><strong>劳翼法务</strong><small>劳动法律顾问</small></span>
         </div>
         <div>
           <span>{session.user.displayName || session.user.username}</span>
-          <Button icon={<ArrowLeftOutlined />} onClick={onBack}>返回商城</Button>
+          <Button icon={<ArrowLeftOutlined />} onClick={onBack}>返回首页</Button>
         </div>
       </header>
       <main className="advisor-workspace">
@@ -394,8 +394,8 @@ export function AdvisorPage({ session, onBack, onSessionExpired, onApplyProduct 
             ) : messages.length === 0 ? (
               <div className="chat-empty">
                 <CustomerServiceOutlined />
-                <h1>你好，我是安心保智能顾问</h1>
-                <p>告诉我你的年龄、职业、预算和关注的保障类型，我会协助你梳理保险方案。</p>
+                <h1>你好，我是劳翼法务的劳动法律顾问</h1>
+                <p>描述你遇到的劳动纠纷（欠薪、被辞退、加班、工伤、没签合同等），我会分析案情、给出维权建议，并帮你生成所需的法律文书。</p>
               </div>
             ) : (
               messages.map((message, index) => (
@@ -434,7 +434,7 @@ export function AdvisorPage({ session, onBack, onSessionExpired, onApplyProduct 
             <Input.TextArea
               value={input}
               autoSize={{ minRows: 1, maxRows: 4 }}
-              placeholder="描述你的保险需求，例如：30岁，有医保，预算每年3000元，想配置医疗险和重疾险"
+              placeholder="描述你的劳动纠纷，例如：公司拖欠我3个月工资每月5000元，还把我辞退了，想申请劳动仲裁"
               disabled={sending}
               onChange={(event) => setInput(event.target.value)}
               onPressEnter={(event) => {
@@ -472,7 +472,7 @@ export function AdvisorPage({ session, onBack, onSessionExpired, onApplyProduct 
       </Modal>
       <Modal
         open={rejectReasonOpen}
-        title="取消保存方案"
+        title="请填写原因"
         okText="提交"
         cancelText="返回"
         okButtonProps={{ disabled: !rejectReason.trim() }}
@@ -487,7 +487,7 @@ export function AdvisorPage({ session, onBack, onSessionExpired, onApplyProduct 
           autoSize={{ minRows: 3, maxRows: 5 }}
           maxLength={200}
           showCount
-          placeholder="请填写取消原因，例如：费用太高了，我想换一个预算更低的方案"
+          placeholder="请填写原因，例如：我想先咨询执业律师后再决定"
           onChange={(event) => setRejectReason(event.target.value)}
         />
       </Modal>
@@ -959,7 +959,7 @@ function PlanInterruptCard({
     <div className="plan-interrupt">
       <div className="plan-interrupt__header">
         <div>
-          <span>方案确认</span>
+          <span>{interrupt.preview ? '文书预览' : '方案确认'}</span>
           <h3>{interrupt.confirm_info}</h3>
         </div>
         <SafetyCertificateOutlined />
@@ -998,8 +998,13 @@ function PlanInterruptCard({
             );
           })}
         </div>
+      ) : interrupt.preview ? (
+        <div className="doc-preview">
+          <p className="doc-preview__note">请核对以下文书内容，确认后将正式生成并保存。</p>
+          <MarkdownMessage content={interrupt.preview} />
+        </div>
       ) : (
-        <pre>{JSON.stringify(interrupt.plan, null, 2)}</pre>
+        interrupt.plan ? <pre>{JSON.stringify(interrupt.plan, null, 2)}</pre> : null
       )}
       <div className="plan-actions">
         <Button
@@ -1009,7 +1014,7 @@ function PlanInterruptCard({
           disabled={!interrupt.action.includes('approve')}
           onClick={onApprove}
         >
-          确认保存方案
+          {interrupt.preview ? '确认生成文书' : '确认'}
         </Button>
         <Button
           danger

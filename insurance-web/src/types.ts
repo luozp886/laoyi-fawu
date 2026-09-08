@@ -57,9 +57,11 @@ export interface ChatHistory {
 }
 
 export interface PlanInterrupt {
-  plan: unknown;
+  plan?: unknown;
   confirm_info: string;
   action: Array<'approve' | 'reject'>;
+  /** 文书生成预览（generate_document 中断时会带正文） */
+  preview?: string;
 }
 
 export interface ClauseSource {

@@ -123,7 +123,7 @@ export function listChatThreads(userId: number): Promise<ChatThread[]> {
   return agentRequest<ChatThread[]>('/chat-threads', userId);
 }
 
-export function createChatThread(userId: number, title = '保险咨询'): Promise<ChatThread> {
+export function createChatThread(userId: number, title = '法律咨询'): Promise<ChatThread> {
   return agentRequest<ChatThread>('/chat-threads', userId, {
     method: 'POST',
     body: JSON.stringify({ title }),
@@ -233,10 +233,11 @@ function parseInterrupt(data: string): PlanInterrupt | null {
   const value = Array.isArray(parsed) ? parsed[0] : parsed;
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<PlanInterrupt>;
-  if (!('plan' in candidate) || typeof candidate.confirm_info !== 'string') return null;
+  if (typeof candidate.confirm_info !== 'string') return null;
   return {
     plan: candidate.plan,
     confirm_info: candidate.confirm_info,
+    preview: typeof candidate.preview === 'string' ? candidate.preview : undefined,
     action: Array.isArray(candidate.action)
       ? candidate.action.filter((item): item is 'approve' | 'reject' =>
           item === 'approve' || item === 'reject',
