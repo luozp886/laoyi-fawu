@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 import { AdvisorPage } from './AdvisorPage';
-import { ApplicationPage } from './ApplicationPage';
 import { clearSession, readSession, saveSession } from './auth';
 import { HomePage } from './HomePage';
 import type { AuthSession } from './types';
@@ -9,15 +8,6 @@ import type { AuthSession } from './types';
 function navigate(path: string) {
   window.history.pushState({}, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));
-}
-
-function applyPath(target: { productId: string; planId: string; itemId: string }) {
-  const params = new URLSearchParams({
-    product_id: target.productId,
-    plan_id: target.planId,
-    item_id: target.itemId,
-  });
-  return `/apply?${params.toString()}`;
 }
 
 export default function App() {
@@ -38,7 +28,7 @@ export default function App() {
   function logout() {
     clearSession();
     setSession(null);
-    if (path === '/advisor' || path === '/apply') navigate('/');
+    if (path === '/advisor') navigate('/');
   }
 
   function sessionExpired() {
@@ -53,17 +43,7 @@ export default function App() {
         session={session}
         onBack={() => navigate('/')}
         onSessionExpired={sessionExpired}
-        onApplyProduct={(target) => navigate(applyPath(target))}
-      />
-    );
-  }
-
-  if (path === '/apply' && session) {
-    return (
-      <ApplicationPage
-        session={session}
-        onBack={() => navigate('/advisor')}
-        onSessionExpired={sessionExpired}
+        onApplyProduct={() => { /* 法律平台由顾问在对话内完成文书生成，无独立投保页 */ }}
       />
     );
   }
@@ -71,7 +51,7 @@ export default function App() {
   return (
     <HomePage
       session={session}
-      initialAuthOpen={path === '/advisor' || path === '/apply'}
+      initialAuthOpen={path === '/advisor'}
       onAuthenticated={authenticated}
       onLogout={logout}
       onConsult={() => navigate('/advisor')}
