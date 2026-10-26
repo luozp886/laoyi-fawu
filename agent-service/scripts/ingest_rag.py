@@ -29,6 +29,8 @@ LAW_CORPUS: list[dict[str, str]] = [
     {"id": "2", "title": "中华人民共和国劳动合同法", "file": "labor_contract_law.md"},
     {"id": "3", "title": "中华人民共和国劳动争议调解仲裁法", "file": "labor_dispute_arbitration_law.md"},
     {"id": "4", "title": "工伤保险条例", "file": "work_injury_regulation.md"},
+    {"id": "5", "title": "中华人民共和国劳动合同法实施条例", "file": "labor_contract_law_regulation.md"},
+    {"id": "6", "title": "最高人民法院关于审理劳动争议案件适用法律问题的解释（一）", "file": "labor_dispute_judicial_interpretation.md"},
 ]
 
 

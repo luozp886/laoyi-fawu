@@ -38,4 +38,3 @@ class ChatHistoryResponse(BaseModel):
 
     thread_id: UUID
     messages: list[ChatMessageResponse]
-    interrupt: Any | None = Field(default=None, description="尚未处理完成的中断（如保险方案待确认）")

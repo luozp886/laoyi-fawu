@@ -37,20 +37,38 @@ class KnowledgeRetriever:
         k: int,
         doc_id: int | None = None,
     ) -> list[KnowledgeChunk]:
-        """跨法规库检索；doc_id 为空表示全库检索。"""
+        """跨法规库检索；doc_id 为空表示全库检索。
+
+        rerank（精排）由 Milvus 服务端调用阿里 dashscope 完成，依赖虚拟机/容器外网；
+        一旦网络不可用会直接抛异常导致对话失败。这里做两级容错：
+        优先带 rerank 检索，失败则降级为普通混合检索（稠密+稀疏），保证功能可用。
+        """
         expr = f"doc_id == {doc_id}" if doc_id is not None else None
 
-        child_chunks = await self.vector_store.asimilarity_search(
-            query=query,
-            k=k,
-            fetch_k=10,
-            expr=expr,
-            reranker=create_reranker(query),
-        )
+        try:
+            child_chunks = await self.vector_store.asimilarity_search(
+                query=query,
+                k=k,
+                fetch_k=10,
+                expr=expr,
+                reranker=create_reranker(query),
+            )
+        except Exception:
+            # rerank 依赖 Milvus 容器访问外网（dashscope），网络不通时降级：
+            # 去掉 reranker 重新检索，宁可排序稍差也不让对话报错。
+            logger.warning("Milvus rerank 调用失败，已降级为普通混合检索", exc_info=True)
+            child_chunks = await self.vector_store.asimilarity_search(
+                query=query,
+                k=k,
+                fetch_k=10,
+                expr=expr,
+            )
 
         parent_ids = list(
             dict.fromkeys(
-                child.metadata["parent_id"] for child in child_chunks
+                child.metadata.get("parent_id")
+                for child in child_chunks
+                if child.metadata.get("parent_id")
             )
         )
         if not parent_ids:

@@ -3,22 +3,22 @@ services:
     image: postgres:16
     container_name: hm-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-insurance}
-      POSTGRES_USER: ${POSTGRES_USER:-insurance}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insurance123}
+      POSTGRES_DB: ${POSTGRES_DB:-law_consult}
+      POSTGRES_USER: ${POSTGRES_USER:-law_consult}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-law_consult123}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-insurance} -d ${POSTGRES_DB:-insurance}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-law_consult} -d ${POSTGRES_DB:-law_consult}"]
       interval: 10s
       timeout: 5s
       retries: 10
     restart: unless-stopped
     networks:
-      - insurance-net
+      - law-net
 
   etcd:
     image: quay.io/coreos/etcd:v3.5.13
@@ -38,7 +38,7 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - insurance-net
+      - law-net
 
   minio:
     image: minio/minio:RELEASE.2024-04-18T19-09-19Z
@@ -59,7 +59,7 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - insurance-net
+      - law-net
 
   milvus:
     image: milvusdb/milvus:v3.0.0
@@ -74,6 +74,10 @@ services:
       MINIO_ADDRESS: minio:9000
       MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin2026}
+    # 指定公共 DNS，让容器能解析外网域名（重排接口 dashscope.aliyuncs.com）
+    dns:
+      - 223.5.5.5
+      - 114.114.114.114
     command: milvus run standalone
     ports:
       - "${MILVUS_PORT:-19530}:19530"
@@ -88,7 +92,7 @@ services:
       retries: 10
     restart: unless-stopped
     networks:
-      - insurance-net
+      - law-net
   attu:
     image: zilliz/attu:v3.0.0-beta.6
     ports:
@@ -102,7 +106,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - insurance-net
+      - law-net
 
 volumes:
   postgres_data:
@@ -112,5 +116,7 @@ volumes:
   attu-data:
 
 networks:
-  insurance-net:
+  law-net:
     driver: bridge
+
+

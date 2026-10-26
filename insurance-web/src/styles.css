@@ -2294,3 +2294,90 @@ a {
 @media (max-width: 620px) {
   .advisor-header { height: auto; min-height: 66px; flex-wrap: wrap; gap: 8px; padding-top: 8px; padding-bottom: 8px; }
 }
+
+/* ==================== 劳务文档维护页 ==================== */
+.documents-page { background: #f3efe6; }
+
+.documents-main {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 26px 20px 48px;
+}
+
+.documents-toolbar {
+  align-items: flex-end;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.documents-toolbar h2 {
+  color: #14304f;
+  font-size: 22px;
+  font-weight: 750;
+  margin: 0 0 6px;
+}
+
+.documents-toolbar p {
+  color: #6b7785;
+  font-size: 13px;
+  margin: 0;
+}
+
+.documents-toolbar__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.documents-table {
+  background: #fff;
+  border: 1px solid var(--line, #e3e8e8);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(18, 38, 63, 0.05);
+  overflow: hidden;
+  padding: 4px 8px;
+}
+
+.doc-title-cell {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.doc-title-cell > span.anticon {
+  color: #b08a34;
+  font-size: 18px;
+}
+
+.doc-title-cell strong {
+  color: #14304f;
+  display: block;
+  font-weight: 650;
+}
+
+.doc-title-cell small {
+  color: #8a95a1;
+  display: block;
+  font-size: 12px;
+}
+
+.doc-actions {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.doc-form-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+.documents-page .ant-table-thead > tr > th {
+  background: #faf6ec;
+  color: #14304f;
+  font-weight: 650;
+}

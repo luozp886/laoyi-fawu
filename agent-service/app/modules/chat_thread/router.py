@@ -1,13 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infra.database import get_session
+from app.security import get_current_user_id
 from .schemas import *
 from .service import ChatThreadService
-
 router = APIRouter(prefix="/api/v1/chat-threads", tags=["会话管理的接口"])
 
 
@@ -24,7 +24,8 @@ def get_service(
 @router.post("", response_model=ChatThreadResponse)
 async def create_chat_thread(
     request: ChatThreadCreate,
-    user_id: Annotated[int, Header(alias="x-user-id")],
+    # 依赖注入校验 JWT，得到当前登录用户ID（替代原来的 x-user-id 请求头）
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: ChatThreadService = Depends(get_service),
 ):
     """创建会话"""
@@ -34,7 +35,7 @@ async def create_chat_thread(
 
 @router.get("", response_model=list[ChatThreadResponse])
 async def list_chat_threads(
-    user_id: Annotated[int, Header(alias="x-user-id")],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: ChatThreadService = Depends(get_service),
 ):
     """查询当前用户的会话列表"""
@@ -46,7 +47,7 @@ async def list_chat_threads(
 async def rename(
     thread_id: str,
     request: ChatThreadCreate,
-    user_id: Annotated[int, Header(alias="x-user-id")],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: ChatThreadService = Depends(get_service),
 ):
     """重命名会话"""
@@ -57,7 +58,7 @@ async def rename(
 @router.get("/{thread_id}/messages", response_model=ChatHistoryResponse)
 async def get_chat_history(
     thread_id: UUID,
-    user_id: Annotated[int, Header(alias="x-user-id")],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: ChatThreadService = Depends(get_service),
 ):
     """查询指定会话的历史消息"""
@@ -71,10 +72,11 @@ async def get_chat_history(
 )
 async def delete_chat_thread(
     thread_id: UUID,
-    user_id: Annotated[int, Header(alias="x-user-id")],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: ChatThreadService = Depends(get_service),
 ) -> Response:
     """删除指定会话"""
 
     await service.delete(thread_id, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+

@@ -19,14 +19,17 @@ class AppSettings(EnvSettings):
     host: str = Field(alias="APP_HOST", default="127.0.0.1")
     port: int = Field(alias="APP_PORT", default=8001)
     debug: bool = Field(alias="APP_DEBUG", default=True, description="是否开启FastAPI的DEBUG模式")
+    jwt_secret: str = Field(alias="JWT_SECRET", default="labor-law-demo-2026-secret-key-please-change-before-deploy", description="登录令牌签名密钥")
+    jwt_access_expire_minutes: int = Field(alias="JWT_ACCESS_EXPIRE_MINUTES", default=120, description="访问令牌有效期（分钟），过期后由刷新令牌自动续期")
+    jwt_refresh_expire_days: int = Field(alias="JWT_REFRESH_EXPIRE_DAYS", default=7, description="刷新令牌有效期（天），双token机制中的长效令牌")
 
 class DatabaseSettings(EnvSettings):
     """数据库相关设置"""
     host: str = Field(alias="DB_HOST", default="localhost")
     port: int = Field(alias="DB_PORT", default=5432)
-    name: str = Field(alias="DB_NAME", default="insurance")
-    user: str = Field(alias="DB_USER", default="insurance")
-    password: str = Field(alias="DB_PASSWORD", default="insurance123")
+    name: str = Field(alias="DB_NAME", default="law_consult")
+    user: str = Field(alias="DB_USER", default="law_consult")
+    password: str = Field(alias="DB_PASSWORD", default="law_consult123")
     echo: bool = Field(alias="DB_ECHO", default=False)
     pool_size: int = Field(alias="DB_POOL_SIZE", default=5)
     max_overflow: int = Field(alias="DB_MAX_OVERFLOW", default=10)
@@ -45,7 +48,7 @@ class DatabaseSettings(EnvSettings):
         ).encoded_string()
 
     @computed_field
-    # 把这个函数当成属性来使用
+    # 把这个函数当属性来使用
     @property
     def url(self) -> str:
         return self.build_url("postgresql+asyncpg")
@@ -83,3 +86,4 @@ class Settings(BaseSettings):
     rag: RAGSettings = Field(default_factory=RAGSettings)
 # 项目启动直接初始化
 settings = Settings()
+

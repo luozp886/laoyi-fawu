@@ -1,15 +1,6 @@
 import type { AuthSession } from './types';
 
-const STORAGE_KEY = 'insurance-mall-auth-v2';
-
-export const DEFAULT_SESSION: AuthSession = {
-  user: {
-    id: 1,
-    username: 'heima',
-    email: 'heima@example.com',
-    displayName: '黑马-虎哥',
-  },
-};
+const STORAGE_KEY = 'labor-law-auth-v3';
 
 export function readSession(): AuthSession | null {
   try {
@@ -27,4 +18,21 @@ export function saveSession(session: AuthSession): void {
 
 export function clearSession(): void {
   window.localStorage.removeItem(STORAGE_KEY);
+}
+
+/** 读取访问令牌（JWT） */
+export function readAccessToken(): string | null {
+  return readSession()?.token ?? null;
+}
+
+/** 读取刷新令牌（双 token 机制） */
+export function readRefreshToken(): string | null {
+  return readSession()?.refreshToken ?? null;
+}
+
+/** 刷新成功后更新本地保存的两个令牌 */
+export function updateTokens(accessToken: string, refreshToken: string): void {
+  const session = readSession();
+  if (!session) return;
+  saveSession({ ...session, token: accessToken, refreshToken });
 }

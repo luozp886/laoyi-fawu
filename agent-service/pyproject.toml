@@ -1,7 +1,7 @@
 [project]
 name = "agent-service"
 version = "0.1.0"
-description = "Insurance AI agent service"
+description = "劳动法律智能文书与咨询平台（劳翼AI法务）后端服务"
 requires-python = ">=3.11"
 dependencies = [
     "aiostream>=0.7.1",
@@ -29,6 +29,7 @@ dependencies = [
     "pyjwt>=2.13.0",
     "pymilvus>=3.0.0",
     "pypdf>=6.14.2",
+    "python-docx>=1.1.2",
     "sqlacodegen>=4.0.4",
     "sqlalchemy>=2.0.51",
     "structlog>=26.1.0",
@@ -39,3 +40,12 @@ dependencies = [
 [[tool.uv.index]]
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 default = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

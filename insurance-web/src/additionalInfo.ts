@@ -1,10 +1,10 @@
-import type { AdditionalInfo, AdditionalPolicy, AdditionalProduct, ClauseSource } from './types';
+import type { AdditionalInfo, ClauseSource } from './types';
 
+/** 后端当前只下发法条来源（clause_sources）附加信息，此处统一做归一化。 */
 export function normalizeAdditionalInfo(raw: unknown): AdditionalInfo[] {
   if (!raw) return [];
   if (Array.isArray(raw)) {
-    if (looksLikePolicies(raw)) return policyInfo(raw);
-    return productInfo(raw, inferProductTitle(raw));
+    return sourceInfo(raw);
   }
   if (typeof raw !== 'object') return [];
 
@@ -13,37 +13,12 @@ export function normalizeAdditionalInfo(raw: unknown): AdditionalInfo[] {
   if (wrappedSources) {
     return sourceInfo(wrappedSources);
   }
-
-  const wrappedProducts = record.plan_items ?? record.candidate_products ?? record.candidates_products;
-  if (wrappedProducts) {
-    return productInfo(wrappedProducts, record.plan_items ? '推荐方案产品' : '候选产品');
-  }
-
-  const wrappedPolicies = record.policies ?? record.policy_items;
-  if (wrappedPolicies) {
-    return policyInfo(wrappedPolicies);
-  }
-
-  if (looksLikePolicy(record)) {
-    return policyInfo([record]);
-  }
-
   return sourceInfo(record);
 }
 
 function sourceInfo(raw: unknown): AdditionalInfo[] {
   const sources = normalizeSources(raw);
   return sources.length ? [{ type: 'clause_sources', sources }] : [];
-}
-
-function productInfo(raw: unknown, title: string): AdditionalInfo[] {
-  const products = normalizeProducts(raw);
-  return products.length ? [{ type: 'products', title, products }] : [];
-}
-
-function policyInfo(raw: unknown): AdditionalInfo[] {
-  const policies = normalizePolicies(raw);
-  return policies.length ? [{ type: 'policies', title: '保单信息', policies }] : [];
 }
 
 function normalizeSources(raw: unknown): ClauseSource[] {
@@ -59,35 +34,6 @@ function normalizeSources(raw: unknown): ClauseSource[] {
       source_id: String(item.source_id ?? sourceId ?? ''),
     }))
     .filter((item) => item.source_id);
-}
-
-function normalizeProducts(raw: unknown): AdditionalProduct[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is AdditionalProduct => Boolean(item) && typeof item === 'object');
-}
-
-function normalizePolicies(raw: unknown): AdditionalPolicy[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is AdditionalPolicy =>
-    Boolean(item) && typeof item === 'object' && looksLikePolicy(item as Record<string, unknown>),
-  );
-}
-
-function looksLikePolicies(items: unknown[]): boolean {
-  return items.some((item) =>
-    Boolean(item) && typeof item === 'object' && looksLikePolicy(item as Record<string, unknown>),
-  );
-}
-
-function looksLikePolicy(record: Record<string, unknown>): boolean {
-  return Boolean(record.policy_number || record.effective_at || record.coverage_snapshot || record.policy_snapshot);
-}
-
-function inferProductTitle(items: unknown[]): string {
-  const first = items.find((item) => Boolean(item) && typeof item === 'object') as
-    | Record<string, unknown>
-    | undefined;
-  return first?.product_id ? '推荐方案产品' : '候选产品';
 }
 
 export function attachInfoToLastAssistantMessage<T extends { role: string; additionalInfo?: AdditionalInfo[] }>(

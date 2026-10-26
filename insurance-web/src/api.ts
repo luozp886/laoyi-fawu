@@ -1,10 +1,13 @@
+import {
+  clearSession,
+  readAccessToken,
+  readRefreshToken,
+  updateTokens,
+} from './auth';
 import type {
+  AuthSession,
   ChatHistory,
   ChatThread,
-  DocumentTemplate,
-  GeneratedDoc,
-  LegalCategory,
-  PlanInterrupt,
 } from './types';
 
 export const API_BASE = '/api/v1';
@@ -19,159 +22,221 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new ApiError(error?.message ?? '请求失败，请稍后重试', response.status);
-  }
-  return response.json() as Promise<T>;
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * 注册全局 401 处理器（App 启动时调用）：清空本地会话并跳转登录页。
+ * 当刷新令牌也失效、无法续期时触发，实现“让前端跳转登录页面”。
+ */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
 }
 
-async function authorizedBusinessRequest<T>(
+function notifyUnauthorized(): void {
+  clearSession();
+  unauthorizedHandler?.();
+}
+
+interface AuthPayload {
+  token: string;
+  refresh_token: string;
+  user: { id: number; username: string; email: string; display_name?: string | null };
+}
+
+/** 后端登录/注册/刷新响应（snake_case）→ 前端 AuthSession（camelCase） */
+function toAuthSession(data: AuthPayload): AuthSession {
+  return {
+    token: data.token,
+    refreshToken: data.refresh_token,
+    user: {
+      id: data.user.id,
+      username: data.user.username,
+      email: data.user.email,
+      displayName: data.user.display_name ?? data.user.username,
+    },
+  };
+}
+
+let refreshing: Promise<boolean> | null = null;
+
+/** 用刷新令牌换取新的访问令牌（双 token 自动续期），并轮换刷新令牌 */
+async function tryRefresh(): Promise<boolean> {
+  const refreshToken = readRefreshToken();
+  if (!refreshToken) return false;
+  if (!refreshing) {
+    refreshing = (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (!response.ok) return false;
+        const data = (await response.json()) as AuthPayload;
+        updateTokens(data.token, data.refresh_token);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshing = null;
+      }
+    })();
+  }
+  return refreshing;
+}
+
+async function parseError(response: Response): Promise<ApiError> {
+  const error = await response.json().catch(() => null);
+  return new ApiError(error?.detail ?? error?.message ?? '请求失败，请稍后重试', response.status);
+}
+
+interface RequestOptions {
+  /** 跳过鉴权头（登录/注册/刷新/登出等白名单接口） */
+  skipAuth?: boolean;
+}
+
+/**
+ * 统一请求封装：自动携带 Authorization: Bearer <accessToken>；
+ * 遇 401 时先用刷新令牌自动续期并重试，续期失败则通知跳转登录页。
+ */
+async function request<T>(
   path: string,
-  userId: number,
   init?: RequestInit,
+  options?: RequestOptions,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-user-id': String(userId),
-      ...init?.headers,
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new ApiError(error?.message ?? '璇锋眰澶辫触锛岃绋嶅悗閲嶈瘯', response.status);
+  const isForm = init?.body instanceof FormData;
+
+  const doFetch = async (): Promise<Response> => {
+    const headers: Record<string, string> = {
+      ...(init?.headers as Record<string, string> | undefined),
+    };
+    if (!isForm) headers['Content-Type'] = 'application/json';
+    const token = readAccessToken();
+    if (token && !options?.skipAuth) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${API_BASE}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers,
+    });
+  };
+
+  let response = await doFetch();
+  if (response.status === 401 && !options?.skipAuth) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      response = await doFetch();
+    } else {
+      notifyUnauthorized();
+    }
   }
-  if (response.status === 204) {
-    return undefined as T;
-  }
+
+  if (!response.ok) throw await parseError(response);
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
-async function agentRequest<T>(
-  path: string,
-  userId: number,
-  init?: RequestInit,
-): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-user-id': String(userId),
-      ...init?.headers,
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new ApiError(error?.detail ?? error?.message ?? '请求失败，请稍后重试', response.status);
+/** 账号登录 */
+export function loginAccount(username: string, password: string): Promise<AuthSession> {
+  return request<AuthPayload>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  }, { skipAuth: true }).then(toAuthSession);
+}
+
+/** 注册账号 */
+export function registerAccount(input: {
+  username: string;
+  email: string;
+  password: string;
+  displayName?: string;
+}): Promise<AuthSession> {
+  return request<AuthPayload>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      username: input.username,
+      email: input.email,
+      password: input.password,
+      display_name: input.displayName || undefined,
+    }),
+  }, { skipAuth: true }).then(toAuthSession);
+}
+
+/** 退出登录（撤销服务端刷新令牌；本地会话由调用方清理） */
+export async function logoutAccount(refreshToken: string): Promise<void> {
+  try {
+    await request<void>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }, { skipAuth: true });
+  } catch {
+    // 服务端撤销失败不阻塞前端退出
   }
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
 }
 
-export function listTemplates(
-  category: LegalCategory | 'all',
-  signal?: AbortSignal,
-): Promise<DocumentTemplate[]> {
-  const params = new URLSearchParams();
-  if (category !== 'all') {
-    params.set('category', category);
-  }
-  const query = params.toString();
-  return request<DocumentTemplate[]>(`/templates${query ? `?${query}` : ''}`, { signal });
+// ==================== 咨询会话 ====================
+
+export function listChatThreads(): Promise<ChatThread[]> {
+  return request<ChatThread[]>('/chat-threads');
 }
 
-export function listMyDocuments(userId: number): Promise<GeneratedDoc[]> {
-  return request<GeneratedDoc[]>('/documents', {
-    headers: { 'x-user-id': String(userId) },
-  });
-}
-
-export function markPlanItemInsured(
-  userId: number,
-  planId: string,
-  itemId: string,
-): Promise<unknown> {
-  return authorizedBusinessRequest<unknown>(
-    `/insurance-plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}/insured`,
-    userId,
-    { method: 'PATCH' },
-  );
-}
-
-export function getInsurancePlan(userId: number, planId: string): Promise<unknown> {
-  return authorizedBusinessRequest<unknown>(
-    `/insurance-plans/${encodeURIComponent(planId)}`,
-    userId,
-  );
-}
-
-export function listChatThreads(userId: number): Promise<ChatThread[]> {
-  return agentRequest<ChatThread[]>('/chat-threads', userId);
-}
-
-export function createChatThread(userId: number, title = '法律咨询'): Promise<ChatThread> {
-  return agentRequest<ChatThread>('/chat-threads', userId, {
+export function createChatThread(title = '法律咨询'): Promise<ChatThread> {
+  return request<ChatThread>('/chat-threads', {
     method: 'POST',
     body: JSON.stringify({ title }),
   });
 }
 
-export function getChatHistory(userId: number, threadId: string): Promise<ChatHistory> {
-  return agentRequest<ChatHistory>(`/chat-threads/${threadId}/messages`, userId);
+export function getChatHistory(threadId: string): Promise<ChatHistory> {
+  return request<ChatHistory>(`/chat-threads/${threadId}/messages`);
 }
 
-export function renameChatThread(
-  userId: number,
-  threadId: string,
-  title: string,
-): Promise<ChatThread> {
-  return agentRequest<ChatThread>(`/chat-threads/${threadId}`, userId, {
+export function renameChatThread(threadId: string, title: string): Promise<ChatThread> {
+  return request<ChatThread>(`/chat-threads/${threadId}`, {
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
 }
 
-export async function deleteChatThread(userId: number, threadId: string): Promise<void> {
-  await agentRequest<void>(`/chat-threads/${threadId}`, userId, {
+export async function deleteChatThread(threadId: string): Promise<void> {
+  await request<void>(`/chat-threads/${threadId}`, {
     method: 'DELETE',
   });
 }
 
 export async function streamChat(
-  userId: number,
   threadId: string,
-  input: { message?: string; decision?: Record<string, unknown> },
+  input: { message?: string },
   handlers: {
     onMessage: (chunk: string) => void;
     onAdditionalInfo?: (info: unknown) => void;
-    onInterrupt?: (interrupt: PlanInterrupt) => void;
   },
 ): Promise<void> {
-  const response = await fetch(`${API_BASE}/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-user-id': String(userId),
-    },
-    body: JSON.stringify({ thread_id: threadId, ...input }),
-  });
+  const doFetch = async (): Promise<Response> => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = readAccessToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${API_BASE}/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ thread_id: threadId, ...input }),
+    });
+  };
+
+  let response = await doFetch();
+  if (response.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      response = await doFetch();
+    } else {
+      notifyUnauthorized();
+      throw new ApiError('登录已失效，请重新登录', 401);
+    }
+  }
+
   if (!response.ok || !response.body) {
-    const error = await response.json().catch(() => null);
-    throw new ApiError(error?.detail ?? error?.message ?? '消息发送失败，请稍后重试', response.status);
+    throw await parseError(response);
   }
 
   const reader = response.body.getReader();
@@ -195,7 +260,6 @@ function handleSseEvent(
   handlers: {
     onMessage: (chunk: string) => void;
     onAdditionalInfo?: (info: unknown) => void;
-    onInterrupt?: (interrupt: PlanInterrupt) => void;
   },
 ) {
   const lines = eventText.split(/\r?\n/);
@@ -207,11 +271,6 @@ function handleSseEvent(
   if (!data) return;
   if (event === 'message') {
     handlers.onMessage(parseSseMessage(data));
-    return;
-  }
-  if (event === 'interrupt') {
-    const interrupt = parseInterrupt(data);
-    if (interrupt) handlers.onInterrupt?.(interrupt);
     return;
   }
   if (event === 'additional_info') {
@@ -226,24 +285,6 @@ function parseSseMessage(data: string): string {
   } catch {
     return data;
   }
-}
-
-function parseInterrupt(data: string): PlanInterrupt | null {
-  const parsed = parseJsonLike(data);
-  const value = Array.isArray(parsed) ? parsed[0] : parsed;
-  if (!value || typeof value !== 'object') return null;
-  const candidate = value as Partial<PlanInterrupt>;
-  if (typeof candidate.confirm_info !== 'string') return null;
-  return {
-    plan: candidate.plan,
-    confirm_info: candidate.confirm_info,
-    preview: typeof candidate.preview === 'string' ? candidate.preview : undefined,
-    action: Array.isArray(candidate.action)
-      ? candidate.action.filter((item): item is 'approve' | 'reject' =>
-          item === 'approve' || item === 'reject',
-        )
-      : ['approve', 'reject'],
-  };
 }
 
 function parseJsonLike(data: string): unknown {

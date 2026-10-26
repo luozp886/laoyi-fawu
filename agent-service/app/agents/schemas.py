@@ -15,7 +15,6 @@ class LegalAgentContext:
 # 意图常量：主图分支
 Intent = Literal[
     "chitchat",      # 与法律业务无关的闲聊
-    "law_advisor",   # 劳动维权顾问：案情→维权方案→生成文书
     "legal_qa",      # 劳动法规咨询（RAG）
     "human_handoff", # 转人工
     "fallback",      # 无法判断
@@ -33,12 +32,18 @@ AdditionalInfo = dict[str, Any]
 
 
 def merge_additional_info(
-    left: dict[str, AdditionalInfo],
-    right: dict[str, AdditionalInfo],
+    left: dict[str, AdditionalInfo] | None,
+    right: dict[str, AdditionalInfo] | None,
 ) -> dict[str, AdditionalInfo]:
-    if not left:
-        return right
-    return left.update(right)
+    """合并 additional_info 状态（LangGraph 通道 reducer）。
+
+    注意：不能调用 dict.update() 后返回其返回值——update() 原地修改但返回 None，
+    会导致通道值被写成 None，进而引发历史查询 500 与子图合并崩溃。
+    这里两侧都做空值兜底，并返回一份新字典（不原地修改）。
+    """
+    left = left or {}
+    right = right or {}
+    return {**left, **right}
 
 
 class LegalAgentState(MessagesState):

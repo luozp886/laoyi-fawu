@@ -7,11 +7,10 @@ from langgraph.types import Command
 
 from app.agents.chitchat import init_chitchat_agent
 from app.agents.intent_router import intent_router
-from app.agents.law_advisor import init_law_advisor
 from app.agents.legal_qa import init_legal_qa
 from app.agents.schemas import Intent, LegalAgentContext, LegalAgentState
 
-# 意图常量：chitchat / law_advisor / legal_qa / human_handoff / fallback
+# 意图常量：chitchat / legal_qa / human_handoff / fallback
 
 
 async def route_node(state: LegalAgentState) -> Command[Intent]:
@@ -59,7 +58,7 @@ def human_handoff_node(state: LegalAgentState) -> dict:
 def fallback_node(state: LegalAgentState) -> dict:
     return {
         "messages": [
-            AIMessage("我还不能确定您的需求。请说明是想咨询劳动法律问题，还是想根据案情生成维权文书。")
+            AIMessage("我还不能确定您的需求。请说明您想咨询的劳动法律问题，例如工时、加班费、经济补偿、工伤或仲裁时效等。")
         ]
     }
 
@@ -72,14 +71,12 @@ def init_legal_orchestrator(checkpointer: AsyncPostgresSaver):
     )
     builder.add_node("route", route_node)
     builder.add_node("chitchat", init_chitchat_agent())
-    builder.add_node("law_advisor", init_law_advisor())
     builder.add_node("legal_qa", init_legal_qa())
     builder.add_node("human_handoff", human_handoff_node)
     builder.add_node("fallback", fallback_node)
 
     builder.add_edge(START, "route")
     builder.add_edge("chitchat", END)
-    builder.add_edge("law_advisor", END)
     builder.add_edge("legal_qa", END)
     builder.add_edge("human_handoff", END)
     builder.add_edge("fallback", END)

@@ -11,3 +11,10 @@ __pycache__/
 .venv/
 uv.lock
 *.tsbuildinfo
+
+# 本地配置与密钥（不要提交）
+deploy/milvus/user.yaml
+logs/
+*.log
+.pytest_cache/
+.DS_Store

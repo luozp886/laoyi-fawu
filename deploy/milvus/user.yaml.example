@@ -1,0 +1,11 @@
+credential:
+  dashscope_apikey:
+    apikey: sk-xxxxxxxxxxxxxxxxxx   # 填入你自己的 DashScope API Key（阿里云百炼控制台获取）
+
+function:
+  rerank:
+    model:
+      providers:
+        ali:
+          credential: dashscope_apikey
+          # url: https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank

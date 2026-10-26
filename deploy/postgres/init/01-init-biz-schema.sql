@@ -24,6 +24,40 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==== 登录刷新令牌（双 token 机制：refresh token 只存 SHA-256 哈希） ====
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    replaced_by VARCHAR(64),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+
+-- ==== 劳务文档维护（上传后父子块入库 RAG 知识库） ====
+CREATE TABLE IF NOT EXISTS law_documents (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(300) NOT NULL,
+    category VARCHAR(50) NOT NULL DEFAULT 'other',
+    file_name VARCHAR(255),
+    source VARCHAR(300),
+    content TEXT NOT NULL,
+    rag_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    rag_error TEXT,
+    uploaded_by BIGINT NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_law_documents_rag_status CHECK (rag_status IN ('pending', 'ingested', 'failed'))
+);
+CREATE INDEX IF NOT EXISTS idx_law_documents_updated ON law_documents(updated_at DESC);
+
+-- 文档自增 id 从 100 开始，避开内置法规知识库占用的 doc_id 1~6，防止上传文档覆盖内置法规索引
+SELECT setval(pg_get_serial_sequence('law_documents', 'id'), 100, true);
+
 -- ==== 法律文书模板（原 insurance products，作为商城“商品”） ====
 -- category 取值：arbitration / termination / wage / injury / contract
 CREATE TABLE IF NOT EXISTS document_templates (
@@ -106,16 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_generated_documents_plan ON generated_documents(p
 
 -- ==== 演示用户（与前端登录一致，密码为占位） ====
 INSERT INTO users (id, username, email, password_hash, display_name, status)
-VALUES (
-    1,
-    'demo',
-    'demo@example.com',
-    '$2a$12$demo.password.hash.placeholder',
-    '演示用户',
-    'active'
-)
-ON CONFLICT (id) DO NOTHING;
-SELECT setval(pg_get_serial_sequence('users', 'id'), 1, true);
+VALUES (1, '骆智鹏', 'luozhipeng@example.com', '$argon2id$v=19$m=65536,t=3,p=4$QW0Z6QIrQ3+D3Mv9t/U6kA$O7omR3mER68od2LXCQvqP9PKmd/m1wAShI9FnnhSY00', '骆智鹏', 'active');
 
 -- ==== 演示文书模板种子（约 11 份 / 5 类） ====
 -- element_schema 字段由 Agent 逐项向用户收集，见切片2 文档引擎实现。
@@ -144,3 +169,6 @@ SELECT setval(pg_get_serial_sequence('document_templates', 'id'), 11, true);
 COMMENT ON TABLE document_templates IS '法律文书模板(咨询平台可售文书)；对应前端“文书浏览”的商品维度';
 COMMENT ON TABLE case_plans IS 'AI 顾问根据案情生成的维权处理方案';
 COMMENT ON TABLE generated_documents IS '用户经结构化问答填要素后拼装生成的法律文书成品';
+
+
+

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { AdvisorPage } from './AdvisorPage';
-import { clearSession, readSession, saveSession } from './auth';
+import { logoutAccount, setUnauthorizedHandler } from './api';
+import { clearSession, readRefreshToken, readSession, saveSession } from './auth';
 import { HomePage } from './HomePage';
 import type { AuthSession } from './types';
 
@@ -20,15 +21,27 @@ export default function App() {
     return () => window.removeEventListener('popstate', updatePath);
   }, []);
 
+  // 全局 401 处理：刷新令牌续期失败时，清空会话并跳转登录页（由 api.ts 触发）
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearSession();
+      setSession(null);
+      navigate('/');
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
   function authenticated(nextSession: AuthSession) {
     saveSession(nextSession);
     setSession(nextSession);
   }
 
   function logout() {
+    const refreshToken = readRefreshToken();
+    if (refreshToken) void logoutAccount(refreshToken);
     clearSession();
     setSession(null);
-    if (path === '/advisor') navigate('/');
+    if (path !== '/') navigate('/');
   }
 
   function sessionExpired() {
@@ -43,7 +56,6 @@ export default function App() {
         session={session}
         onBack={() => navigate('/')}
         onSessionExpired={sessionExpired}
-        onApplyProduct={() => { /* 法律平台由顾问在对话内完成文书生成，无独立投保页 */ }}
       />
     );
   }
@@ -52,6 +64,7 @@ export default function App() {
     <HomePage
       session={session}
       initialAuthOpen={path === '/advisor'}
+      initialAuthRedirect={() => navigate('/advisor')}
       onAuthenticated={authenticated}
       onLogout={logout}
       onConsult={() => navigate('/advisor')}

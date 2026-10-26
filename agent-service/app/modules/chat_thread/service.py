@@ -72,11 +72,16 @@ class ChatThreadService:
         snapshot = await self.agent.aget_state(config)
 
         # 3.读取additional_info（按AI消息id保存的引用来源）
-        additional_infos = snapshot.values.get("additional_info", {})
+        # 会话可能尚未在 Checkpointer 中保存过状态（如数据库里的旧会话），
+        # snapshot.values 可能为 None，这里做防御性取值。
+        state_values = snapshot.values or {}
+        # 注意：历史会话的状态里 additional_info 可能是 None（早期 reducer 污染），
+        # 必须用 or {} 兜底，否则 .get() 仍可能取到 None。
+        additional_infos = state_values.get("additional_info") or {}
 
         # 4.处理消息历史
         messages = []
-        for message in snapshot.values.get("messages", []):
+        for message in state_values.get("messages", []):
             # 4.1.只保留用户消息和AI消息
             if isinstance(message, HumanMessage):
                 role = "user"
@@ -95,20 +100,9 @@ class ChatThreadService:
                     )
                 )
 
-        # 5.处理interrupt
-        interrupts = None
-        if hasattr(snapshot, "interrupts") and snapshot.interrupts:
-            interrupts = snapshot.interrupts
-        elif hasattr(snapshot, "tasks") and snapshot.tasks:
-            for task in snapshot.tasks:
-                if hasattr(task, "interrupts") and task.interrupts:
-                    interrupts = task.interrupts
-                    break
-
         return ChatHistoryResponse(
             thread_id=thread_id,
             messages=messages,
-            interrupt=interrupts[0].value if interrupts else None,
         )
 
     async def delete(
